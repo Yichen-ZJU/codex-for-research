@@ -10,3 +10,11 @@
 ## 2026-10-03 系统性修复与改进（与 claude-for-research 同批，verified）
 
 A 队列 / B 契约 / C setup.sh+register-arxiv-mcp.sh / D 引用 / F 许可 / G 规则全部同步落地（内容与 claude 仓对应 commit 一致；E1 本仓保持 Codex 适配不变）。关键差异：setup.sh 备份唯一化+staging 原子替换+失败回滚；register-arxiv-mcp.sh 退出码语义（0 成功/3 跳过/1 失败）+写后回读验证。技能集合保持 115。未打 tag、未发 release。
+
+## 2026-10-03 系统性修复与改进（与 claude-for-research 同批，verified）
+
+H 队列 / I setup.sh 事务回滚+互斥锁+SIGTERM 回滚 / J shared-references 随包交付+forge 契约随包 / K rsync 白名单+远端计数 / L ARS 自检解耦 / M 日志命名+快照语义 / N AUTHORSHIP+MIT 附录 / O watchdog 加固+路径穿越拒绝+测试套件——与 claude 仓对应 commit 一致。tests/run_tests.sh 一键回归（引擎相关场景按 Codex 宿主语义执行）。已知限制节见 claude 仓 CHANGELOG（F06/F08/V04/S01/D01）。
+
+### 已知限制（同步记录）
+
+- F06 断点恢复协议 / F08 split 与指标来源核验 / V04 ARS 运行依赖 doctor / S01 preset 进程内 exec / D01 forge description 元数据——处置与理由同 claude-for-research 仓 CHANGELOG。
