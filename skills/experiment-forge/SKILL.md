@@ -1,12 +1,10 @@
 ---
 name: experiment-forge
-description: Package a research task into a karpathy-style autonomous experiment package (locked eval + open editable file + program.md instructions + git-as-ledger). Use when the user wants to turn a DL/ML/scientific computing task into a self-driving experiment loop runnable by the autoresearch skill. Creates the package; does NOT run the loop itself.
 argument-hint: <task-description>
 ---
 
 # Experiment Forge
 
-把用户的任务锻造成一个"自主实验任务包"（karpathy/autoresearch 结构）。本 skill 只负责**造任务包**；造好后用 `autoresearch` skill 跑循环。
 
 ## 任务包结构
 
@@ -49,6 +47,8 @@ argument-hint: <task-description>
 
 - 每次运行开专支：`autoresearch/<tag>`（tag 用日期，如 `jul26`）
 - 每次实验一个 commit；指标改进 → 分支前进（keep）；持平/变差 → `git revert HEAD --no-edit`（discard，**失败保留在历史里供学习，不用 reset**）；崩溃 → 记 `crash`；超时不算崩溃，直接 discard 不重试
+**契约单一来源**：任务包生成与 autoresearch 执行共用 `references/contract.md`（results.tsv 9 列表头、循环边界、crash/revert、Guard、min_delta、日志命名）；模板或本文与其冲突时以契约为准。
+
 - `results.tsv` **不提交 git**，列（与 autoresearch 执行器一致）：`iteration timestamp commit metric delta guard status move description`（TAB 分隔，逗号会在描述里断掉）
 
 ## Forge 流程
@@ -58,9 +58,10 @@ argument-hint: <task-description>
 3. 用 `templates/program.md` 生成 `program.md`，替换所有 `<PLACEHOLDER>`。
 4. 生成 `results.tsv` 表头。
 5. **冒烟测试**：亲自跑一次 baseline 确认链路通（这步省不得）。
-6. 交付时告诉用户运行方式：`autoresearch`（读 SKILL.md 按其流程执行）或 `claude -p "Read program.md and execute"` 无头跑。
+6. 交付时告诉用户两条运行路线：
+   - 单 agent：`/autoresearch`（或直接 `claude -p "Read program.md and execute"`）
 
 ## 防-context 爆炸纪律（写进 program.md）
 
-- 运行输出一律重定向：`cmd > run.log 2>&1`，禁止 tee/直接输出
-- 读结果用 `grep "^metric_name:" run.log`，崩溃才 `tail -n 50 run.log`
+- 运行输出一律重定向：`cmd > run-<N>.log 2>&1`（每迭代独立日志，见契约 §3），禁止 tee/直接输出
+- 读结果用 `grep "^metric_name:" run-<N>.log`，崩溃才 `tail -n 50 run-<N>.log`
