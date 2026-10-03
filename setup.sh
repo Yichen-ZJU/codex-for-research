@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # codex-for-research 可逆安装器
-# 用法: ./setup.sh install   （备份现有 ~/.codex/skills 与 AGENTS.md 后安装，可一键回退）
-#       ./setup.sh uninstall （按 manifest 移除已装技能，恢复备份）
-#       ./setup.sh -h|--help
+# 用法: ./setup.sh install | uninstall | -h|--help
 #
-# 设计要点：C1 参数先于写入; C2 备份目录唯一（时间戳+PID，存在即拒）;
-# C3 staging+原子替换、失败自动恢复; C4 MCP 注册如实报告、部分失败退出码非 0。
+# 工程约束（发布前核验 C1-C5 + 二轮 I1-I4，与 install.sh 同语义）：
+#   C1 参数先于写入; C2 备份唯一（时间戳+PID，存在即拒）;
+#   C3 staging+原子替换; C4 MCP 如实报告、部分失败退出码非 0;
+#   I2 事务清单回滚（新建删除/替换还原），恢复消息先校验;
+#   I3 符号链接按原位置重建（悬空链接同样恢复）;
+#   I4 互斥锁 + SIGTERM/INT 回滚。
 set -euo pipefail
 CODEX_DIR="$HOME/.codex"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,51 +23,114 @@ usage() {
 EOF
 }
 
+path_exists() { [ -e "$1" ] || [ -L "$1" ]; }
+
 do_install() {
+  # I4: 互斥锁
+  local LOCK="$CODEX_DIR/.setup.lock"
+  mkdir -p "$CODEX_DIR"
+  if ! mkdir "$LOCK" 2>/dev/null; then
+    local existing; existing="$(cat "$LOCK/pid" 2>/dev/null || true)"
+    if [ -n "$existing" ] && kill -0 "$existing" 2>/dev/null; then
+      echo "错误: 另一安装实例正在运行 (pid $existing)。" >&2
+      exit 1
+    fi
+    rm -rf "$LOCK"; mkdir "$LOCK"
+  fi
+  echo $$ > "$LOCK/pid"
+
   # C2: 唯一备份目录
   local bak="$BACKUP_ROOT/$(date +%Y%m%d-%H%M%S)-$$"
   if [ -e "$bak" ]; then
     echo "错误: 备份目录已存在（秒级+PID 碰撞）: $bak —— 拒绝覆盖旧备份。" >&2
-    exit 1
+    rm -rf "$LOCK"; exit 1
   fi
-  mkdir -p "$bak"
+  mkdir -p "$bak/restore"
 
-  # C3: 失败自动恢复
-  restore_all() {
-    echo "==> 安装失败，正在从备份恢复 ..."
-    [ -d "$bak/skills" ] && cp -r "$bak/skills/." "$CODEX_DIR/skills/" 2>/dev/null || true
-    [ -f "$bak/AGENTS.md" ] && cp "$bak/AGENTS.md" "$CODEX_DIR/AGENTS.md" || true
-    echo "==> 已恢复（备份保留在 $bak）"
+  # I2/I3: 事务清单
+  local TXN="$bak/txn.log"; : > "$TXN"
+  txn_add() { printf '%s\t%s\n' "$1" "$2" >> "$TXN"; }
+
+  rollback() {
+    local failures=0 op path rel orig
+    echo "==> 安装中断/失败，按事务清单回滚 ..."
+    if [ -s "$TXN" ]; then
+      while IFS=$'\t' read -r op path; do
+        [ -n "$op" ] || continue
+        case "$op" in
+          created) rm -rf -- "$path" ;;
+          replaced)
+            rel="${path#$CODEX_DIR/}"
+            orig="$bak/restore/$rel"
+            rm -rf -- "$path"
+            # cp -a 重建链接本身（含悬空链接）
+            if path_exists "$orig"; then
+              mkdir -p "$(dirname "$path")"
+              cp -a -- "$orig" "$path"
+            fi ;;
+        esac
+      done < <(tac "$TXN" 2>/dev/null || tail -r "$TXN")
+    fi
+    while IFS=$'\t' read -r op path; do
+      [ -n "$op" ] || continue
+      case "$op" in
+        created) path_exists "$path" && { echo "    ⚠️ 应已删除但仍存在: $path"; failures=$((failures+1)); } ;;
+        replaced) path_exists "$path" || { echo "    ⚠️ 应已还原但缺失: $path"; failures=$((failures+1)); } ;;
+      esac
+    done < "$TXN"
+    if [ "$failures" -eq 0 ]; then
+      echo "==> 回滚完成且已校验：恢复到安装前状态（备份保留在 $bak）"
+    else
+      echo "==> 回滚后有 $failures 处不一致，请对照 $bak/restore 手动修复。" >&2
+    fi
+    rm -rf "$LOCK"
   }
-  trap restore_all ERR
+  trap 'trap - ERR TERM INT; rollback; exit 130' TERM INT
+  trap 'trap - ERR TERM INT; rollback; exit 1' ERR
 
-  # 1) 备份原版
+  # 1) 备份原版（整体快照，独立于事务还原目录）
   if [ -d "$CODEX_DIR/skills" ]; then cp -r "$CODEX_DIR/skills" "$bak/skills"; fi
   if [ -f "$CODEX_DIR/AGENTS.md" ]; then cp "$CODEX_DIR/AGENTS.md" "$bak/AGENTS.md"; fi
   echo "✓ 原版已备份: $bak"
 
-  # 2) 安装技能（C3: staging -> 原子替换；记录 manifest）
+  # 2) 安装技能（staging -> 原子替换，逐项事务；记录 manifest）
   mkdir -p "$CODEX_DIR/skills"
   : > "$MANIFEST"
-  local n=0
+  local n=0 name stage
   for s in "$REPO_DIR/skills"/*/; do
     name="$(basename "$s")"
-    local stage="$CODEX_DIR/skills/.staging-$name-$$"
+    stage="$CODEX_DIR/skills/.staging-$name-$$"
     rm -rf "$stage"
     cp -r "$s" "$stage"
-    rm -rf "$CODEX_DIR/skills/$name"
-    mv -T "$stage" "$CODEX_DIR/skills/$name"
+    if path_exists "$CODEX_DIR/skills/$name"; then
+      txn_add replaced "$CODEX_DIR/skills/$name"
+      mkdir -p "$bak/restore/skills"
+      mv -T -- "$CODEX_DIR/skills/$name" "$bak/restore/skills/$name" 2>/dev/null \
+        || mv -- "$CODEX_DIR/skills/$name" "$bak/restore/skills/$name"
+      mv -T -- "$stage" "$CODEX_DIR/skills/$name"
+    else
+      txn_add created "$CODEX_DIR/skills/$name"
+      mv -T -- "$stage" "$CODEX_DIR/skills/$name"
+    fi
     echo "$name" >> "$MANIFEST"; n=$((n+1))
   done
 
-  # 3) AGENTS.md
+  # 3) AGENTS.md（事务）
   local stage_md="$CODEX_DIR/AGENTS.md.new-$$"
   cp "$REPO_DIR/AGENTS.md" "$stage_md"
-  mv -T "$stage_md" "$CODEX_DIR/AGENTS.md"
+  if path_exists "$CODEX_DIR/AGENTS.md"; then
+    txn_add replaced "$CODEX_DIR/AGENTS.md"
+    mv -T -- "$CODEX_DIR/AGENTS.md" "$bak/restore/AGENTS.md"
+    mv -T -- "$stage_md" "$CODEX_DIR/AGENTS.md"
+  else
+    txn_add created "$CODEX_DIR/AGENTS.md"
+    mv -T -- "$stage_md" "$CODEX_DIR/AGENTS.md"
+  fi
 
-  trap - ERR
+  trap - ERR TERM INT
+  rm -rf "$LOCK"
 
-  # 4) arxiv MCP 注册（C4: 如实报告，失败退出码非 0）
+  # 4) arxiv MCP 注册（C4: 如实报告）
   local mcp_status=ok
   set +e
   bash "$REPO_DIR/scripts/register-arxiv-mcp.sh"
@@ -83,7 +148,7 @@ do_install() {
   echo "    AGENTS.md:  ok"
   echo "    MCP arxiv:  $mcp_status"
   echo "    备份:       $bak"
-  echo "    回退: ./setup.sh uninstall"
+  echo "    回退: ./setup.sh uninstall；被覆盖原件从 $bak/restore 复制回原位（删备份≠恢复）"
   if [ "$mcp_status" = failed ]; then
     echo "⚠️  arxiv MCP 注册失败（见上方输出），退出码 1。" >&2
     exit 1
@@ -97,10 +162,9 @@ do_uninstall() {
     [ -n "$name" ] && rm -rf "$CODEX_DIR/skills/$name" && n=$((n+1))
   done < "$MANIFEST"
   rm -f "$MANIFEST"
-  # AGENTS.md 恢复最近备份
   local last; last="$(ls -1d "$BACKUP_ROOT"/* 2>/dev/null | sort | tail -1)"
   if [ -n "$last" ] && [ -f "$last/AGENTS.md" ]; then cp "$last/AGENTS.md" "$CODEX_DIR/AGENTS.md"; echo "✓ AGENTS.md 已从 $last 恢复"; fi
-  echo "✓ 已卸载 $n 个技能。备份保留在 $BACKUP_ROOT（手动删除以彻底清理）"
+  echo "✓ 已卸载 $n 个技能。备份保留在 $BACKUP_ROOT（被覆盖的同名原件在各自备份的 restore/ 下，需手动复制回原位）"
 }
 
 case "${1:-}" in

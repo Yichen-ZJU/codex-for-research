@@ -92,7 +92,7 @@ bash scripts/register-arxiv-mcp.sh
 
 ## 安装说明 / Install Notes
 
-安装会覆盖 `~/.codex/skills/` 下同名技能并更新 `~/.codex/AGENTS.md`，原件自动备份，`./setup.sh uninstall` 可整体恢复；其他 Codex 配置不受影响。 / Installation overwrites same-name skills under `~/.codex/skills/` and updates `~/.codex/AGENTS.md`; originals are backed up, and `./setup.sh uninstall` restores everything. Other Codex configuration is untouched.
+安装会覆盖 `~/.codex/skills/` 下同名技能并更新 `~/.codex/AGENTS.md`，原件自动备份到 `~/.codex-research-backups/<时间戳>-<PID>/`。`./setup.sh uninstall` 移除本仓库安装的技能并恢复 AGENTS.md；被覆盖的同名原件需从备份目录复制回原位（删除备份目录只是清理，不是恢复）。其他 Codex 配置不受影响。 / Installation overwrites same-name skills under `~/.codex/skills/` and updates `~/.codex/AGENTS.md`; originals are backed up under `~/.codex-research-backups/<timestamp>-<PID>/`. `./setup.sh uninstall` removes this repo's skills and restores AGENTS.md; overwritten originals must be copied back from the backup (deleting the backup only discards it). Other Codex configuration is untouched.
 
 ## 许可证 / License
 
