@@ -4,7 +4,7 @@
 #       ./setup.sh uninstall （按 manifest 移除已装技能，恢复备份）
 #       ./setup.sh -h|--help
 #
-# GPT 审查对应：C1 参数先于写入; C2 备份目录唯一（时间戳+PID，存在即拒）;
+# 设计要点：C1 参数先于写入; C2 备份目录唯一（时间戳+PID，存在即拒）;
 # C3 staging+原子替换、失败自动恢复; C4 MCP 注册如实报告、部分失败退出码非 0。
 set -euo pipefail
 CODEX_DIR="$HOME/.codex"
