@@ -89,3 +89,19 @@ bash scripts/register-arxiv-mcp.sh
 [在主页观看内外双循环动画 / Watch the nested-loop workflow →](https://yichen-zju.github.io/claude-for-research/#walkthrough)
 
 <sub>感谢开源仓库 / Thanks to [autoresearch](https://github.com/karpathy/autoresearch), [Feynman](https://github.com/Companion-Inc/feynman), and [AI Research Skills](https://github.com/Orchestra-Research/AI-Research-SKILLs). 各组件许可见原始文件与仓库 / Component licenses remain in their source files and repositories.</sub>
+
+## 安装足迹 / Install Footprint
+
+运行 `./setup.sh install` 会改动： / Running `./setup.sh install` changes:
+
+- **写入** `~/.codex/skills/`（同名技能以 staging+原子替换覆盖；原件整体备份在 `~/.codex-research-backups/<时间戳>-<PID>/`，失败自动回滚） / **writes** `~/.codex/skills/` (same-name skills swapped via staging+atomic replace; originals backed up under `~/.codex-research-backups/<timestamp>-<PID>/`, auto-rollback on failure)
+- **写入** `~/.codex/AGENTS.md`（旧文件先进备份，`uninstall` 自动恢复） / **writes** `~/.codex/AGENTS.md` (backed up first, restored by `uninstall`)
+- **注册 MCP**：`~/.codex/config.toml` 幂等追加 `[mcp_servers.arxiv]`（本机 arxiv-mcp-server，无 key；写后回读验证） / **registers MCP**: idempotently appends `[mcp_servers.arxiv]` to `~/.codex/config.toml` (local arxiv-mcp-server, keyless; verified by read-back)
+- **不触碰**其他 Codex 配置与项目文件 / does **not** touch other Codex config or project files
+
+
+## 许可证 / License
+
+- 本仓库原创内容：**MIT**（见 [LICENSE](LICENSE)）。 / Original content: **MIT** (see [LICENSE](LICENSE)).
+- **第三方组件以各自许可证为准**，逐组件来源/许可证/修改情况见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。其中 `academic-research-suite`（vendored ARS）上游为 **CC BY-NC 4.0（仅限非商业使用）**，商业使用需获得上游作者（Cheng-I Wu）另行授权；5 个写作模板技能为 CC-BY-4.0；Orchestra Research 与 ARIS 组件为 MIT。 / **Third-party components keep their own licenses** — see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). `academic-research-suite` (vendored ARS) is **CC BY-NC 4.0 (non-commercial only)**; the 5 writing-template skills are CC-BY-4.0; Orchestra Research and ARIS components are MIT.
+
