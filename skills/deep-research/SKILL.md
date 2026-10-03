@@ -6,16 +6,29 @@ argument-hint: <topic>
 
 # Deep Research
 
+> **触发纪律（不可绕过）**：本 skill 已被 Skill 工具正式加载——调研类任务（深度调研/文献综述/方向扫描/选题论证）必须走完本管线的 Step 1-7，禁止绕过（不用 Skill 加载、自己 WebSearch 拼报告 = 违规，全局 CLAUDE.md 有同文约定）。冒烟级小问答才允许不走本管线。
+
 Run a thorough, source-heavy investigation on the user's topic and produce a durable research brief with inline citations.
 
 This is an execution request, not a request to explain or implement the workflow instructions. Execute the workflow. Do not answer by describing the protocol. Your first actions should be tool calls that create directories and write the plan artifact.
 
 ## Tools (Claude Code)
 
-- Web search: `web_search`. Fetch pages: `browser`（Codex 端工具名；等价于 Claude 端的 web_search/browser fetch）.
-- Academic papers: the `arxiv` MCP tools — `search_papers` (检索), `download_paper` (全文下载), `search_paper_text` (文内声明核查). If these tools are not visible, fall back to web_search/browser on arxiv.org and record the degradation.
+**论文检索后端（优先级 + 自动降级，探测结果记入 provenance）：**
+1. **arxiv MCP（主后端，无 key 依赖）**：`mcp__arxiv__search_papers`（系统性检索）/ `download_paper` + `read_paper`（关键论文全文读取）/ `search_paper_text`（承重声明原文定位核查）/ `get_abstract` / `citation_graph`。
+2. **alphaxiv MCP（增强后端，可见且可用时优先于 arxiv MCP 做语义发现）**：`discover_papers` / `get_paper_content` / `answer_pdf_queries` / `read_files_from_github_repository`。失效特征：调用报 401/403/连接错——**立即降级到 arxiv MCP，不要重试失效调用**，并在 provenance 记录降级。
+3. **降级兜底**：WebSearch（仅补充新闻/博客/榜单）+ WebFetch（arXiv abs/html 页精读）。 alphaxiv 断连时全部走此层须在 provenance 明示。
+- Web search: `WebSearch`. Fetch pages: `WebFetch`.
 - Subagents: the `Agent` tool with `subagent_type` of `researcher`, `verifier`, `reviewer`. Spawn independent subagents in a single message so they run in parallel. Subagent final messages are short summaries — real output is written to files on disk.
 - Ask the user: `AskUserQuestion` for choices, or plain text and wait.
+
+## 强化模式（经 deep-2 实战验证，深调研默认执行）
+
+- **.plans 分工**：写计划后立即为每个 researcher 写 brief（`outputs/.plans/<slug>-T1.md` 等），多段指令放 brief、Agent prompt 保持短；一条消息并行 spawn 全部 researcher。
+- **承重声明亲核**：子代理无 MCP 工具时，关键论文的全文下载与声明核查由主代理用 arxiv MCP 执行（`download_paper` + `search_paper_text` 定位原文段落），不接受转述定承重结论。
+- **逐候选/逐方向占位检索**：每个候选方向单独反向检索（`search_papers`，按 date 排序，覆盖到最近一月）。
+- **verifier → reviewer 串行**：研究员参与后 verifier 强制；reviewer 的 FATAL 必须修复并磁盘复核后才可交付；修复 >3 处时重写整文件为 `-revised.md`。
+- **工具调用统计入 provenance**：Skill/arxiv MCP/alphaxiv/Web/Agent 各类调用次数写入 `<slug>.provenance.md`（管线路径的审计证据）。
 
 ## Required Artifacts
 
@@ -63,7 +76,7 @@ Use subagents only when decomposition clearly helps:
 
 ## Step 3: Gather Evidence
 
-Avoid crash-prone PDF parsing in this workflow. Do not fetch `.pdf` URLs or run full-text PDF extraction unless the user explicitly asks for it. Prefer paper metadata, abstracts, HTML pages, official docs, and web snippets. If only a PDF exists, cite the PDF URL from search metadata and mark full-text PDF parsing as blocked instead of fetching it.
+全文核验遵循统一策略 `shared-references/full-text-verification-policy.md`：承重声明必须 full-text 级证据（优先 arxiv MCP `download_paper`+`search_paper_text`，其 PDF 支持为可选依赖、失败即降级 alphaxiv `answer_pdf_queries`）；不要用 WebFetch 抓裸 `.pdf` URL（历史崩溃源）——降级期只允许 HTML/abs 页 fragment 级证据，承重结论标 `unverified-fulltext` 并继续追全文。
 
 If direct search was chosen:
 - Skip researcher spawning entirely.
@@ -77,7 +90,7 @@ If subagents were chosen:
 - Write a per-researcher brief first, such as `outputs/.plans/<slug>-T1.md`.
 - Keep each Agent prompt short; put multi-paragraph instructions in the brief file and point the subagent at it.
 - Spawn all researchers in one message so they run in parallel.
-- Do not name exact tool commands in subagent tasks beyond the canonical set (`web_search`, `browser`, the `arxiv` MCP tools).
+- Do not name exact tool commands in subagent tasks beyond the canonical set (`WebSearch`, `WebFetch`, the `alphaxiv` MCP tools).
 - Prefer broad guidance such as "use paper search and web search"; if a PDF parser or paper fetch fails, the researcher must continue from metadata, abstracts, and web sources and mark PDF parsing as blocked.
 
 Example — one message, two parallel Agent calls:
@@ -108,7 +121,7 @@ Before citation, sweep the draft:
 
 If direct search/no researcher subagents was chosen:
 - Do citation yourself.
-- Verify reachable HTML/doc URLs with browser fetch.
+- Verify reachable HTML/doc URLs with WebFetch.
 - Copy or rewrite `outputs/.drafts/<slug>-draft.md` to `outputs/.drafts/<slug>-cited.md` with inline citations and a Sources section.
 - Do not spawn the `verifier` subagent for simple direct-search runs.
 
