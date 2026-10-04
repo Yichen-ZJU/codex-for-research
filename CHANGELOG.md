@@ -18,3 +18,7 @@ H 队列 / I setup.sh 事务回滚+互斥锁+SIGTERM 回滚 / J shared-reference
 ### 已知限制（同步记录）
 
 - F06 断点恢复协议 / F08 split 与指标来源核验 / V04 ARS 运行依赖 doctor / S01 preset 进程内 exec / D01 forge description 元数据——处置与理由同 claude-for-research 仓 CHANGELOG。
+
+## 2026-10-03 评审语义修正：近邻存在 ≠ 否决
+
+与 claude-for-research 同批：idea-evaluator 与 research-orchestrator 增加"近邻存在 ≠ 否决"一节（delta 声明四要件 + 决策规则），修正发现近邻即降分/绕开的隐性偏置。v1.2 增量构思的前置补丁。

@@ -4,9 +4,7 @@ description: Orchestrate an end-to-end autonomous research project (idea → exp
 argument-hint: <research-question-or-project-dir>
 ---
 
-# Research Orchestrator (Codex Edition)
-
-> 与 claude-for-research 同源（双引擎共用技能体系）。差异：无显式 Skill tool（读 ~/.codex/skills/<name>/SKILL.md 等效执行）；子代理用后台 bash/codex exec 分身；心跳用后台 ticker；MCP 论文检索用 arxiv（工具：search_papers / download_paper / search_paper_text）。
+# Research Orchestrator
 
 你是研究项目的总指挥（借鉴 Orchestra autoresearch 的双循环架构，执行层路由到本环境的 skills）。你编排；领域 skills 执行。
 
@@ -16,7 +14,7 @@ argument-hint: <research-question-or-project-dir>
 
 | 研究活动 | 路由到 |
 |---|---|
-| 文献调研 / 综述 | `literature-review` skill + arxiv MCP（`search_papers`/`download_paper`/`search_paper_text`） |
+| 文献调研 / 综述 | `literature-review` skill + alphaxiv MCP（`discover_papers` 等） |
 | 长文档/PDF 精读 | `summarize`、`pdf-explore` |
 | 假设头脑风暴 | `brainstorming-research-ideas`、`creative-thinking-for-research` |
 | 任务包锻造（锁定评估+开放文件） | `experiment-forge` |
@@ -27,9 +25,9 @@ argument-hint: <research-question-or-project-dir>
 | 多模态模型 | `clip`、`llava`、`blip-2`、`whisper`、`segment-anything` 等 18 类 |
 | 评测 | `lm-evaluation-harness`、`nemo-evaluator` |
 | 实验追踪 | `weights-and-biases`、`mlflow`、`tensorboard` |
-| 论文写作 | `paper-production`（论文总装线：选题闸门→骨架→Intro→叙事→初稿→双审查） |
+| 论文写作 | `paper-writing`（流程）+ `ml-paper-writing`（ML 会议 LaTeX 模板） |
 | 图表 | `figure-style`、`figure-composer`、`academic-plotting` |
-| 对抗审查 | `reviewer` 角色（后台 bash 起独立 codex exec 分身，喂 reviewer 提示词与待审材料） |
+| 对抗审查 | `reviewer` agent（via Agent 工具） |
 
 读相关 SKILL.md 再动手 —— 里面有工作流、常见坑、代码示例。
 
@@ -57,11 +55,7 @@ argument-hint: <research-question-or-project-dir>
 
 ```
 BOOTSTRAP（一次，轻量）
-  Gate 0（输入模糊才触发）: 带证据的引导 —— AI 先侦察生成候选方向，
-                            用户只做选择题（协议: references/rq-gates.md）
-  Gate 1（必过）:           FINER 问题审判 + scope 边界 + 方法论蓝图
-                            + 魔鬼代言人 Checkpoint（PASS 才放行）
-  然后: literature-review 摸底 → 形成初始假设 → 锁定评估标准
+  明确问题 → literature-review 摸底 → 形成初始假设 → 锁定评估标准
 
 INNER LOOP（快，自主，重复）
   选最高优先级假设 → 写 protocol → 先 commit 再跑 → 测量 → 记录 → 学习
@@ -74,7 +68,7 @@ OUTER LOOP（周期性反思，每 5-10 个实验或察觉模式时）
               / PIVOT（假设被证伪，回 BOOTSTRAP）/ CONCLUDE（证据足够，写论文）
 
 FINALIZE
-  paper-production 总装线 → ai-use-disclosure 披露声明 → 最终进展报告 → 归档
+  paper-writing + ml-paper-writing 写论文 → 最终进展报告 → 归档
 ```
 
 内外循环没有刚性边界 —— 节奏由你判断。研究是非线性的：结果意外就回文献（存 `literature/`），卡死就头脑风暴，问题本身错了就 PIVOT。
@@ -87,6 +81,16 @@ FINALIZE
 - **分析前先 sanity check**：训练收敛了吗？baseline 复现了吗？数据加载对吗？（抽查几个样本）
 - **commit 规范**：`research(init|protocol|results|reflect|paper): {简述}`，有意义的进展才 commit。
 
+## 近邻存在 ≠ 否决（Neighbors are not a veto）
+
+文献门/评审发现近邻或竞品**不是关闭课题的理由**，是触发 delta 声明的信号：
+
+- delta 声明四要件：**点名的最近邻** + **明确增量**（组合 A+B / 迁移新场景 /
+  补齐缺失对照 / 机制解释，均合法）+ **机制故事** + **失败模式预期**。
+- delta 清晰 → 正大光明继续推进（照常过 Gate，**不降档不绕开**）；
+  delta 模糊 → 才进入 PIVOT 分支。
+- 一句话决策规则：**有近邻 → 写 delta 声明并继续；要证明的现象还不存在 → 才需要空白证明。**
+
 ## findings.md 是项目记忆
 
 每次会话/循环开始先读它。每次外循环后更新四个问题：我们知道什么？什么模式解释了结果？哪些坑不要再踩（Lessons and Constraints，如"wd>0.1 在这个 scale 发散"）？还有什么 open？
@@ -95,7 +99,7 @@ FINALIZE
 
 ## 持久运行
 
-- 会话内：用后台 ticker 脚本做心跳 —— 写一个 `ticker.sh`（`while true; do date >> .runtime/heartbeat.log; sleep 1200; done`）挂 nohup；主进程每轮检查 `.runtime/` 下的实验完成标志（`*.exit` 文件）后继续手中工作；卡死就诊断。心跳是节拍器，不是阶段边界。Codex 无 CronCreate，长程自主用"主会话 + 后台实验作业 + 标志文件接力"模式（参考验收实验 codex-gate-test 的 .runtime/jobs/ 实现）。
+- 会话内：用 `/loop 20m` 或 CronCreate 做心跳 —— 每 tick 读 research-state.yaml + findings.md，继续手中工作；卡死就诊断。心跳是节拍器，不是阶段边界。
 - 跨会话：所有状态必须落盘（state/log/findings/experiments），新会话先读这四个再动手。
 - 实验比心跳间隔长：正常，下 tick 检查是否跑完，没跑完就等或做别的事（更新笔记、查文献）。
 
