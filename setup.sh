@@ -90,8 +90,13 @@ do_install() {
     fi
     rm -rf "$LOCK"
   }
-  fail_install() {  # 显式统一失败路径（S3）
+  fail_install() {  # 显式统一失败路径（S3）；I03: 恢复旧 manifest
     trap - ERR TERM INT
+    if [ -f "$bak/manifest.prev" ]; then
+      cp "$bak/manifest.prev" "$MANIFEST"
+    else
+      rm -f "$MANIFEST"
+    fi
     rollback
     exit 1
   }
@@ -103,9 +108,13 @@ do_install() {
   if [ -f "$CODEX_DIR/AGENTS.md" ]; then cp "$CODEX_DIR/AGENTS.md" "$bak/AGENTS.md"; fi
   echo "✓ 原版已备份: $bak"
 
-  # 2) 安装技能（staging -> 原子替换，逐项事务；记录 manifest）
+  # 2) 安装技能（staging -> 原子替换，逐项事务；manifest 先写临时文件，
+  #    全部成功后原子替换，失败由 fail_install 恢复旧 manifest —— I03）
   mkdir -p "$CODEX_DIR/skills"
-  : > "$MANIFEST"
+  local manifest_tmp="$bak/manifest.new"
+  : > "$manifest_tmp"
+  # 备份现有 manifest（若有），失败恢复用
+  [ -f "$MANIFEST" ] && cp "$MANIFEST" "$bak/manifest.prev"
   local n=0 name stage
   for s in "$REPO_DIR/skills"/*/; do
     name="$(basename "$s")"
@@ -132,7 +141,7 @@ do_install() {
         fail_install
       fi
     fi
-    echo "$name" >> "$MANIFEST"; n=$((n+1))
+    echo "$name" >> "$manifest_tmp"; n=$((n+1))
   done
 
   # 3) AGENTS.md（事务）
@@ -147,6 +156,7 @@ do_install() {
     mv -T -- "$stage_md" "$CODEX_DIR/AGENTS.md"
   fi
 
+  mv -T "$manifest_tmp" "$MANIFEST"   # I03: 全部成功才替换 manifest
   trap - ERR TERM INT
   rm -rf "$LOCK"
 
