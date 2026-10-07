@@ -2,6 +2,8 @@
 
 These conventions apply **when doing research work** — deep research, literature reviews, paper reading/writing, replications, experiment loops, or any task using the research skills in `~/.codex/skills/`. For ordinary coding tasks, ignore them.
 
+> 产品族统一名：**Lemvo**（莱姆尼沃）——同一套科研体系运行在 Claude Code 与 Codex CLI 双引擎。
+
 **论文检索后端（优先级 + 自动降级，探测结果记 provenance）**：arxiv MCP（工具：search_papers / download_paper / search_paper_text，主后端，无 key）→ alphaxiv MCP（可用时优先语义发现；401/403 即降级不重试）→ web_search / browser 兜底（降级须明示）。覆盖 arXiv，不含 PubMed/clinical，生物医学主题用 web_search 补充。
 
 ## Output locations
