@@ -9,6 +9,7 @@
 #   I3 符号链接按原位置重建（悬空链接同样恢复）;
 #   I4 互斥锁 + SIGTERM/INT 回滚。
 set -euo pipefail
+set -E  # errtrace：ERR trap 继承进函数（回滚已先事务化，删除目标前验证备份）
 CODEX_DIR="$HOME/.codex"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_ROOT="$HOME/.codex-research-backups"
@@ -62,11 +63,15 @@ do_install() {
           replaced)
             rel="${path#$CODEX_DIR/}"
             orig="$bak/restore/$rel"
-            rm -rf -- "$path"
-            # cp -a 重建链接本身（含悬空链接）
+            # I01: 备份确认存在才动目标；缺失则保现状并告警，绝不删唯一原件
             if path_exists "$orig"; then
+              rm -rf -- "$path"
+              # cp -a 重建链接本身（含悬空链接）
               mkdir -p "$(dirname "$path")"
               cp -a -- "$orig" "$path"
+            else
+              echo "    ⚠️ 备份缺失，保留现状不删: $path" >&2
+              failures=$((failures+1))
             fi ;;
         esac
       done < <(tac "$TXN" 2>/dev/null || tail -r "$TXN")
@@ -84,6 +89,11 @@ do_install() {
       echo "==> 回滚后有 $failures 处不一致，请对照 $bak/restore 手动修复。" >&2
     fi
     rm -rf "$LOCK"
+  }
+  fail_install() {  # 显式统一失败路径（S3）
+    trap - ERR TERM INT
+    rollback
+    exit 1
   }
   trap 'trap - ERR TERM INT; rollback; exit 130' TERM INT
   trap 'trap - ERR TERM INT; rollback; exit 1' ERR
@@ -103,14 +113,24 @@ do_install() {
     rm -rf "$stage"
     cp -r "$s" "$stage"
     if path_exists "$CODEX_DIR/skills/$name"; then
-      txn_add replaced "$CODEX_DIR/skills/$name"
       mkdir -p "$bak/restore/skills"
-      mv -T -- "$CODEX_DIR/skills/$name" "$bak/restore/skills/$name" 2>/dev/null \
-        || mv -- "$CODEX_DIR/skills/$name" "$bak/restore/skills/$name"
-      mv -T -- "$stage" "$CODEX_DIR/skills/$name"
+      # I01: 先确认原件备份成功落盘，再登记可恢复替换（S3: 显式判定，不靠 ERR trap）
+      if ! mv -T -- "$CODEX_DIR/skills/$name" "$bak/restore/skills/$name" 2>/dev/null \
+         && ! mv -- "$CODEX_DIR/skills/$name" "$bak/restore/skills/$name"; then
+        echo "错误: 备份 $name 失败 —— 目标未改动，安装中止并回滚。" >&2
+        fail_install
+      fi
+      txn_add replaced "$CODEX_DIR/skills/$name"
+      if ! mv -T -- "$stage" "$CODEX_DIR/skills/$name"; then
+        echo "错误: 安装 $name 失败 —— 回滚。" >&2
+        fail_install
+      fi
     else
       txn_add created "$CODEX_DIR/skills/$name"
-      mv -T -- "$stage" "$CODEX_DIR/skills/$name"
+      if ! mv -T -- "$stage" "$CODEX_DIR/skills/$name"; then
+        echo "错误: 安装 $name 失败 —— 回滚。" >&2
+        fail_install
+      fi
     fi
     echo "$name" >> "$MANIFEST"; n=$((n+1))
   done
