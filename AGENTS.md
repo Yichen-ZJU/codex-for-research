@@ -6,7 +6,7 @@ These conventions apply when doing research work — deep research, literature r
 
 ## Research skill library
 
-Full suite migrated from claude-for-research-pro (181 skills incl. research-orchestrator double-loop). Subagents (researcher/verifier/reviewer/writer) are executed via background bash / codex exec instances — Codex has no Agent tool.
+Full suite migrated from the internal research stack (181 skills incl. research-orchestrator double-loop). Subagents (researcher/verifier/reviewer/writer) are executed via background bash / codex exec instances — Codex has no Agent tool.
 
 ## Paper search backend (v3.4 dual-backend)
 
