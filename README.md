@@ -1,15 +1,15 @@
-<p align="center"><a href="https://yichen-zju.github.io/claude-for-research/"><img src="assets/research-cover.png?v=lemvo-1" alt="Codex for Research (Lemvo) — One research system. Two CLI engines." width="100%"></a></p>
+<p align="center"><a href="https://yichen-zju.github.io/claude-for-research/"><img src="assets/research-cover.png?v=lemvo-primary-2" alt="Lemvo for Codex — One research system. Two CLI engines." width="100%"></a></p>
 
-<h1 align="center">Codex for Research (Lemvo)</h1>
+<h1 align="center">Lemvo for Codex</h1>
 <p align="center"><strong>一套自主科研体系，两种 CLI 引擎。<br>One research system. Two CLI engines.</strong><br>让想法，走到发现。 / From an idea. To a discovery.</p>
-<p align="center"><a href="https://yichen-zju.github.io/claude-for-research/?lang=zh">Lemvo 中文主页</a> · <a href="https://yichen-zju.github.io/claude-for-research/?lang=en">Lemvo in English</a> · <a href="#quickstart">Quickstart</a> · <a href="https://github.com/Yichen-ZJU/claude-for-research">Claude for Research (Lemvo)</a></p>
+<p align="center"><a href="https://yichen-zju.github.io/claude-for-research/?lang=zh">Lemvo 中文主页</a> · <a href="https://yichen-zju.github.io/claude-for-research/?lang=en">Lemvo in English</a> · <a href="#quickstart">Quickstart</a> · <a href="https://github.com/Yichen-ZJU/claude-for-research">Lemvo for Claude Code</a></p>
 <p align="center"><img src="https://img.shields.io/badge/skills-115-B7F7D4?style=flat-square&amp;labelColor=101312" alt="115 skills"> <img src="https://img.shields.io/badge/engine-Codex%20CLI-B7F7D4?style=flat-square&amp;labelColor=101312" alt="Codex CLI"> <img src="https://img.shields.io/badge/workflow-research%20%E2%86%92%20experiments%20%E2%86%92%20papers-B7F7D4?style=flat-square&amp;labelColor=101312" alt="Research to experiments to papers"></p>
 
-**Lemvo** 是运行在 Claude Code 与 Codex CLI 上的自主科研体系。**Codex for Research (Lemvo)** 把 Codex CLI 变成科研工作台：从深广度文献调研与 Idea 构思，到无人值守的模型改进试验，再到论文写作与评审，由 **Research Orchestrator** 协调全程，**115 个科研技能**提供工作流与领域方法。
+**Lemvo** 是运行在 Claude Code 与 Codex CLI 上的自主科研体系。**Lemvo for Codex** 把 Codex CLI 变成科研工作台：从深广度文献调研与 Idea 构思，到无人值守的模型改进试验，再到论文写作与评审，由 **Research Orchestrator** 协调全程，**115 个科研技能**提供工作流与领域方法。
 
 选择 **Claude Code** 或 **Codex CLI**，保留同一套 Lemvo 科研流程。两个仓库各含 **115 个技能，技能名称集合一致**；工具调用与运行机制分别适配各自引擎。
 
-**Lemvo** brings one autonomous research system to **Claude Code** and **Codex CLI**. **Codex for Research (Lemvo)** equips Codex CLI with broad and deep literature research, idea development, unattended model-improvement experiments, and paper writing and review. **Research Orchestrator** coordinates the whole journey, supported by **115 research skills** and nested experiment and reflection loops. The same skill catalogue runs on Claude Code, with engine-specific tool adaptations.
+**Lemvo** brings one autonomous research system to **Claude Code** and **Codex CLI**. **Lemvo for Codex** equips Codex CLI with broad and deep literature research, idea development, unattended model-improvement experiments, and paper writing and review. **Research Orchestrator** coordinates the whole journey, supported by **115 research skills** and nested experiment and reflection loops. The same skill catalogue runs on Claude Code, with engine-specific tool adaptations.
 
 ## 一套流程，两层循环 / One workflow, two loops
 
