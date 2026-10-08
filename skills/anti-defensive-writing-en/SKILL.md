@@ -11,17 +11,7 @@ description: >
   Triggers: polish my paper, revise manuscript, write abstract, write introduction,
   write conclusion, shorten paper, rebuttal, respond to reviewers, organize
   experiments, defensive writing, AI-flavored academic writing.
-
-## Guardrail (against literal over-application)
-
-Cut/weaken only what does not support the main line; results bearing on
-the central claim must stay — state necessary trade-offs accurately
-("under the same budget, the method reduces memory by X% with accuracy
-changing by Y points") instead of deleting them; local negative results
-characterize applicability, neither escalated to overall failure nor hidden.
-
 ---
-
 # The Press-Release Principle (Paper as Press Conference)
 
 ## One-line principle
@@ -130,3 +120,13 @@ convince the reader that this work solves a problem worth solving, proposes a
 method worth noticing, and already has sufficiently clear evidence of its value.
 Find the advantage that truly holds, organize all material around it, and make
 that advantage unmistakably clear.
+
+## Guardrail (against literal over-application)
+
+Cut/weaken only what does not support the main line; results bearing on
+the central claim must stay — state necessary trade-offs accurately
+("under the same budget, the method reduces memory by X% with accuracy
+changing by Y points") instead of deleting them; local negative results
+characterize applicability, neither escalated to overall failure nor hidden.
+
+---
